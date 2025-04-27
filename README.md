@@ -1,4 +1,5 @@
-# Dragon-Game-By-Python
+# Dragon-Jump-Game-By-Python
+I had created this game during 4th Semester for the subject COMPUTER GRAPHICS ANIMATION as a part of the project developed game from python on 
 
 # Dragon Jump
 
