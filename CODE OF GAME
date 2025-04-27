@@ -1,0 +1,168 @@
+CODE
+
+import pygame
+import os
+import random
+
+pygame.init()
+
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Dragon Jump")
+WHITE = (255, 255, 255)
+ASSET_PATH = "D:/Dragon/"
+
+def load_image(filename, scale=None):
+    full_path = os.path.join(ASSET_PATH, filename)
+    if os.path.exists(full_path):
+        try:
+            img = pygame.image.load(full_path).convert_alpha()
+            if scale:
+                img = pygame.transform.scale(img, scale)
+            return img
+        except pygame.error as e:
+            print(f"Error loading image {filename}: {e}")
+    else:
+        print(f"Image not found: {filename}")
+    return None
+
+def load_sound(filename):
+    full_path = os.path.join(ASSET_PATH, filename)
+    if os.path.exists(full_path):
+        try:
+            return pygame.mixer.Sound(full_path)
+        except pygame.error as e:
+            print(f"Error loading sound {filename}: {e}")
+    else:
+        print(f"Sound not found: {filename}")
+    return None
+
+bg_img = load_image("background.png", (WIDTH, HEIGHT))
+platform_img = load_image("platform.png", (WIDTH, 100))
+dragon_img = load_image("dragon.png", (80, 80))
+fireball_img = load_image("fireball.png", (40, 40))
+star_img = load_image("star.png", (30, 30))
+
+bg_music = load_sound("background sound.mp3")
+collect_sound = load_sound("collect.wav")
+fireball_sound = load_sound("fireball.wav")
+gameover_sound = load_sound("gameover.wav")
+
+if bg_music:
+    bg_music.play(-1)
+
+dragon_x, dragon_y = WIDTH // 2 - 40, HEIGHT - 180
+dragon_velocity_y = 0
+GRAVITY = 0.5
+JUMP_STRENGTH = -10
+MOVE_SPEED = 5
+ground_level = HEIGHT - 100
+
+stars = []
+fireballs = []
+score = 0
+game_over = False
+
+def spawn_star():
+    x = random.randint(50, WIDTH - 50)
+    y = random.randint(100, HEIGHT - 200)
+    stars.append(pygame.Rect(x, y, 30, 30))
+
+def spawn_fireball():
+    x = random.randint(50, WIDTH - 50)
+    y = -50
+    fireballs.append(pygame.Rect(x, y, 40, 40))
+
+def reset_game():
+    global dragon_x, dragon_y, dragon_velocity_y, score, stars, fireballs, game_over
+    dragon_x, dragon_y = WIDTH // 2 - 40, HEIGHT - 180
+    dragon_velocity_y = 0
+    score = 0
+    stars.clear()
+    fireballs.clear()
+    for _ in range(5):
+        spawn_star()
+    for _ in range(3):
+        spawn_fireball()
+    game_over = False
+
+for _ in range(5):
+    spawn_star()
+for _ in range(3):
+    spawn_fireball()
+
+running = True
+
+while running:
+    screen.fill(WHITE)
+    
+    if bg_img:
+        screen.blit(bg_img, (0, 0))
+
+    keys = pygame.key.get_pressed()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and not game_over:
+                dragon_velocity_y = JUMP_STRENGTH
+            if game_over and event.key == pygame.K_r:
+                reset_game()
+
+    if not game_over:
+        dragon_velocity_y += GRAVITY
+        dragon_y += dragon_velocity_y
+        
+        if keys[pygame.K_LEFT]:
+            dragon_x -= MOVE_SPEED
+        if keys[pygame.K_RIGHT]:
+            dragon_x += MOVE_SPEED
+        
+        if dragon_y >= ground_level - 80:
+            dragon_y = ground_level - 80
+            dragon_velocity_y = 0
+        
+        if dragon_x < 0:
+            dragon_x = 0
+        elif dragon_x > WIDTH - 80:
+            dragon_x = WIDTH - 80
+
+        for fireball in fireballs:
+            fireball.y += 5 + (score // 50)
+            if fireball.y > HEIGHT:
+                fireball.y = -50
+                fireball.x = random.randint(50, WIDTH - 50)
+
+            if pygame.Rect(dragon_x, dragon_y, 80, 80).colliderect(fireball):
+                game_over = True
+                if gameover_sound:gameover_sound.play()
+        
+        for star in stars[:]:
+            if pygame.Rect(dragon_x, dragon_y, 80, 80).colliderect(star):
+                stars.remove(star)
+                score += 10
+                if collect_sound:
+                    collect_sound.play()
+
+        if platform_img:
+            screen.blit(platform_img, (0, ground_level))
+        if dragon_img:
+            screen.blit(dragon_img, (dragon_x, dragon_y))
+        for star in stars:
+            screen.blit(star_img, (star.x, star.y))
+        for fireball in fireballs:
+            if fireball_img:
+                screen.blit(fireball_img, (fireball.x, fireball.y))
+
+        font = pygame.font.Font(None, 36)
+        score_text = font.render(f"Score: {score}", True, (0, 0, 0))
+        screen.blit(score_text, (10, 10))
+    else:
+        font = pygame.font.Font(None, 50)
+        gameover_text = font.render("Game Over! Press 'R' to Restart", True, (255, 0, 0))
+        screen.blit(gameover_text, (WIDTH // 2 - 200, HEIGHT // 2 - 50))
+    
+    pygame.display.update()
+    pygame.time.delay(30)
+
+pygame.quit()
